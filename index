@@ -1,0 +1,916 @@
+<meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- Настройки для превращения в приложение на iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Control Center">
+    
+    <title>Control Center</title>
+    <style>
+        :root {
+            --bg-color: #000000;
+            --surface: rgba(28, 28, 30, 0.6);
+            --surface-card: rgba(28, 28, 30, 0.6);
+            --border: rgba(255, 255, 255, 0.12);
+            --text-main: #f5f5f7;
+            --text-secondary: #86868b;
+            --accent: #0a84ff;
+            --danger: #ff453a;
+            --success: #30d158;
+            --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+            --hero-card-bg: rgba(28, 28, 30, 0.6);
+            --ios-slider-fill: rgba(255, 255, 255, 0.85);
+            --blur-val: blur(25px);
+        }
+
+        /* Режим без прозрачности */
+        body.no-transparency {
+            --surface: #1c1c1e;
+            --surface-card: #1c1c1e;
+            --hero-card-bg: #1c1c1e;
+            --blur-val: none;
+        }
+
+        /* Светлая тема */
+        body.theme-light {
+            --bg-color: #f2f2f7;
+            --surface: rgba(255, 255, 255, 0.7);
+            --surface-card: rgba(255, 255, 255, 0.7);
+            --border: rgba(0, 0, 0, 0.08);
+            --text-main: #000000;
+            --text-secondary: #8e8e93;
+            --accent: #007aff;
+            --hero-card-bg: rgba(255, 255, 255, 0.7);
+            --ios-slider-fill: rgba(0, 0, 0, 0.8);
+        }
+
+        body.theme-light.no-transparency {
+            --surface: #ffffff;
+            --surface-card: #ffffff;
+            --hero-card-bg: #ffffff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font); -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg-color); color: var(--text-main); height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); transition: background 0.3s, color 0.3s; }
+
+        .app-views { flex: 1; position: relative; overflow: hidden; display: flex; }
+        .view { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; background: var(--bg-color); opacity: 0; pointer-events: none; transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1); transform: scale(0.98); }
+        .view.active { opacity: 1; pointer-events: auto; transform: scale(1); }
+
+        .nav-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.4); backdrop-filter: var(--blur-val); -webkit-backdrop-filter: var(--blur-val); z-index: 10; }
+        body.theme-light .nav-header { background: rgba(255,255,255,0.4); }
+        .nav-title { font-size: 17px; font-weight: 600; letter-spacing: -0.4px; }
+        .nav-icon-btn { background: none; border: none; color: var(--text-main); font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+        /* Овальная нижняя навигация */
+        .tab-bar-container { position: absolute; bottom: calc(20px + env(safe-area-inset-bottom)); left: 0; width: 100%; display: flex; justify-content: center; z-index: 100; pointer-events: none; }
+        .tab-bar { display: flex; justify-content: space-around; align-items: center; width: 90%; max-width: 380px; height: 60px; background: rgba(28, 28, 30, 0.75); backdrop-filter: var(--blur-val); -webkit-backdrop-filter: var(--blur-val); border: 1px solid var(--border); border-radius: 35px; padding: 0 10px; box-shadow: 0 12px 36px rgba(0,0,0,0.4); pointer-events: auto; }
+        body.theme-light .tab-bar { background: rgba(255, 255, 255, 0.8); }
+
+        .tab-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 10px; font-weight: 500; transition: color 0.2s, transform 0.1s; }
+        .tab-item:active { transform: scale(0.92); }
+        .tab-item svg { width: 22px; height: 22px; fill: currentColor; }
+        .tab-item.active { color: var(--accent); }
+
+        .content-scroll { flex: 1; overflow-y: auto; padding: 20px 20px 95px 20px; display: flex; flex-direction: column; gap: 20px; }
+        
+        .section-header-row { display: flex; justify-content: space-between; align-items: center; margin-left: 4px; margin-right: 4px; margin-bottom: 8px; }
+        .section-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-secondary); }
+        .add-btn-icon { background: var(--surface); border: 1px solid var(--border); color: var(--text-main); width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; font-weight: 600; transition: transform 0.15s; }
+        .add-btn-icon:active { transform: scale(0.88); }
+
+        /* Карточки */
+        .card { background: var(--surface-card); backdrop-filter: var(--blur-val); -webkit-backdrop-filter: var(--blur-val); border: 1px solid var(--border); border-radius: 36px; padding: 22px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); }
+
+        /* Карточка аватара */
+        .hero-banner { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 32px 20px; background: var(--hero-card-bg); backdrop-filter: var(--blur-val); -webkit-backdrop-filter: var(--blur-val); border: 1px solid var(--border); border-radius: 40px; text-align: center; gap: 12px; transition: background 0.3s; box-shadow: 0 8px 32px rgba(0,0,0,0.12); }
+        
+        .avatar-wrapper { position: relative; width: 96px; height: 96px; }
+        .hero-avatar { width: 100%; height: 100%; border-radius: 50%; background-color: #2c2c2e; border: 2px solid rgba(255, 255, 255, 0.2); display: flex; align-items: center; justify-content: center; color: #ffffff; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); overflow: hidden; position: relative; }
+        
+        .avatar-svg-icon { width: 44px; height: 44px; fill: #8e8e93; position: absolute; z-index: 1; }
+        .avatar-img-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-size: cover; background-position: center; z-index: 2; display: none; }
+
+        .pencil-btn { position: absolute; bottom: 0; right: 0; width: 30px; height: 30px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); color: var(--text-main); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); transition: transform 0.15s; z-index: 5; }
+        .pencil-btn:active { transform: scale(0.88); }
+        .pencil-btn svg { width: 14px; height: 14px; fill: var(--text-main); }
+
+        .avatar-editor-panel { width: 100%; background: var(--surface); backdrop-filter: var(--blur-val); border: 1px solid var(--border); border-radius: 28px; padding: 16px; display: none; flex-direction: column; gap: 10px; margin-top: 6px; text-align: left; }
+        .avatar-editor-panel.open { display: flex; }
+        
+        .gallery-btn { width: 100%; background: var(--accent); border: none; color: #ffffff; padding: 12px; border-radius: 18px; font-size: 14px; font-weight: 600; cursor: pointer; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; transition: opacity 0.2s; }
+        .gallery-btn:active { opacity: 0.8; }
+
+        /* Сценарии (округлые) */
+        .scenarios-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .scenario-card { background: var(--surface); backdrop-filter: var(--blur-val); -webkit-backdrop-filter: var(--blur-val); border: 1px solid var(--border); border-radius: 36px; padding: 18px 10px; text-align: center; cursor: pointer; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.05); }
+        .scenario-card:active { transform: scale(0.95); background: rgba(255,255,255,0.1); }
+        .scenario-icon svg { width: 22px; height: 22px; fill: var(--text-main); }
+        .scenario-label { font-size: 12px; font-weight: 500; }
+
+        /* Будильник */
+        .alarm-card { background: var(--surface); backdrop-filter: var(--blur-val); -webkit-backdrop-filter: var(--blur-val); border: 1px solid var(--border); border-radius: 32px; padding: 22px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 16px rgba(0,0,0,0.05); }
+        .alarm-time { font-size: 26px; font-weight: 700; }
+        .alarm-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+        /* Погода */
+        .weather-card { background: linear-gradient(135deg, rgba(28, 28, 30, 0.8) 0%, rgba(15, 28, 46, 0.8) 100%); backdrop-filter: var(--blur-val); -webkit-backdrop-filter: var(--blur-val); border: 1px solid var(--border); border-radius: 36px; padding: 22px; display: flex; justify-content: space-between; align-items: center; color: #fff; box-shadow: 0 8px 32px rgba(0,0,0,0.15); }
+        .weather-temp { font-size: 34px; font-weight: 700; letter-spacing: -1px; }
+        .weather-city { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+        .weather-desc { font-size: 12px; opacity: 0.8; }
+        .weather-icon svg { width: 38px; height: 38px; fill: #fff; }
+
+        /* Датчики */
+        .sensors-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .sensor-card { background: var(--surface); backdrop-filter: var(--blur-val); -webkit-backdrop-filter: var(--blur-val); border: 1px solid var(--border); border-radius: 32px; padding: 20px; display: flex; flex-direction: column; gap: 6px; box-shadow: 0 4px 16px rgba(0,0,0,0.05); }
+        .sensor-icon svg { width: 20px; height: 20px; fill: var(--text-secondary); }
+        .sensor-val { font-size: 22px; font-weight: 700; }
+        .sensor-label { font-size: 12px; color: var(--text-secondary); font-weight: 500; }
+
+        /* Чат */
+        .chat-scroll { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 16px; }
+        .message-row { display: flex; width: 100%; }
+        .message-row.user { justify-content: flex-end; }
+        .message-row.assistant { justify-content: flex-start; }
+        .bubble { max-width: 85%; padding: 12px 18px; border-radius: 24px; font-size: 15px; line-height: 1.45; word-break: break-word; }
+        .message-row.user .bubble { background: var(--accent); color: #fff; border-bottom-right-radius: 6px; }
+        .message-row.assistant .bubble { background: var(--surface); backdrop-filter: var(--blur-val); border: 1px solid var(--border); color: var(--text-main); border-bottom-left-radius: 6px; }
+        
+        .chat-input-box { flex: 1; background: var(--surface); backdrop-filter: var(--blur-val); border: 1px solid var(--border); border-radius: 30px; display: flex; align-items: center; padding: 8px 16px; gap: 8px; }
+        .chat-input-box textarea { flex: 1; background: none; border: none; color: var(--text-main); font-size: 15px; resize: none; max-height: 100px; outline: none; }
+        .action-btn { background: var(--accent); color: #fff; border: none; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 16px; flex-shrink: 0; transition: transform 0.15s; }
+        .action-btn:active { transform: scale(0.9); }
+        .mic-btn-chat { background: var(--surface); color: var(--text-main); border: 1px solid var(--border); }
+        .mic-btn-chat.recording { background: var(--danger); border-color: var(--danger); animation: pulse-mic 1.5s infinite; color: #fff; }
+
+        @keyframes pulse-mic { 0% { transform: scale(1); } 50% { transform: scale(1.08); } 100% { transform: scale(1); } }
+
+        /* Подсветка */
+        .led-preview-box { position: relative; height: 140px; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, rgba(0,0,0,0) 70%); border-radius: 28px; overflow: hidden; }
+        .led-gradient-sphere { width: 84px; height: 84px; border-radius: 50%; background: linear-gradient(135deg, #007aff, #af52de, #ff2d55); box-shadow: 0 0 35px rgba(0, 122, 255, 0.5); transition: all 0.4s ease; }
+        .led-gradient-sphere.pulse { animation: sphereGlow 2.5s infinite alternate; }
+        .led-gradient-sphere.rainbow { animation: rainbowRotate 4s linear infinite; background: linear-gradient(135deg, #ff2d55, #ff9500, #34c759, #007aff); }
+        .led-gradient-sphere.matrix { animation: matrixGlow 1.2s infinite alternate; background: linear-gradient(135deg, #30d158, #30b0c7); }
+
+        @keyframes sphereGlow { 0% { transform: scale(0.95); box-shadow: 0 0 20px rgba(0, 122, 255, 0.4); } 100% { transform: scale(1.08); box-shadow: 0 0 50px rgba(175, 82, 222, 0.8); } }
+        @keyframes rainbowRotate { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
+        @keyframes matrixGlow { 0% { box-shadow: 0 0 15px #30d158; } 100% { box-shadow: 0 0 40px #30d158; } }
+
+        .led-mode-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .mode-btn { background: var(--surface); backdrop-filter: var(--blur-val); border: 1px solid var(--border); color: var(--text-main); padding: 10px; border-radius: 20px; font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.2s; }
+        .mode-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+        .feature-toggle-row { display: flex; justify-content: space-between; align-items: center; background: var(--surface); backdrop-filter: var(--blur-val); padding: 16px 20px; border-radius: 28px; border: 1px solid var(--border); }
+        .feature-info { display: flex; flex-direction: column; gap: 2px; }
+        .feature-title { font-size: 15px; font-weight: 400; }
+        .feature-desc { font-size: 12px; color: var(--text-secondary); }
+
+        .device-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .device-card { background: var(--surface); backdrop-filter: var(--blur-val); -webkit-backdrop-filter: var(--blur-val); border: 1px solid var(--border); border-radius: 32px; padding: 20px; display: flex; flex-direction: column; justify-content: space-between; height: 120px; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 16px rgba(0,0,0,0.05); }
+        .device-card.active { background: rgba(10, 132, 255, 0.15); border-color: var(--accent); }
+        .device-card-top { display: flex; justify-content: space-between; align-items: center; }
+        .device-icon svg { width: 22px; height: 22px; fill: var(--text-main); }
+        
+        /* Свитч в стиле iOS */
+        .ios-switch { width: 51px; height: 31px; background: rgba(120, 120, 128, 0.3); border-radius: 16px; position: relative; transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1); cursor: pointer; }
+        .ios-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; background: #fff; border-radius: 50%; transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 3px 8px rgba(0,0,0,0.25); }
+        .ios-switch.active { background: var(--success); }
+        .ios-switch.active::after { transform: translateX(20px); }
+
+        /* Настройки в стиле iOS */
+        .settings-group { display: flex; flex-direction: column; gap: 1px; background: var(--border); border-radius: 32px; overflow: hidden; border: 1px solid var(--border); backdrop-filter: var(--blur-val); }
+        .setting-row { display: flex; justify-content: space-between; align-items: center; background: var(--surface); padding: 16px 20px; gap: 12px; }
+        .setting-label { font-size: 15px; font-weight: 400; color: var(--text-main); }
+        .setting-input { background: transparent; border: none; color: var(--text-secondary); font-size: 15px; text-align: right; outline: none; width: 140px; }
+        .setting-select { background: transparent; border: none; color: var(--text-secondary); font-size: 15px; outline: none; text-align: right; cursor: pointer; }
+        
+        /* Слайдеры iOS Control Center */
+        .ios-slider-card { background: var(--surface); backdrop-filter: var(--blur-val); border: 1px solid var(--border); border-radius: 32px; padding: 18px 20px; display: flex; flex-direction: column; gap: 10px; }
+        .ios-slider-header { display: flex; justify-content: space-between; align-items: center; font-size: 15px; font-weight: 400; }
+        .ios-slider-wrapper { position: relative; width: 100%; height: 40px; background: rgba(120, 120, 128, 0.2); border-radius: 20px; overflow: hidden; display: flex; align-items: center; padding: 0 14px; }
+        .ios-slider { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 5; }
+        .ios-slider-fill { position: absolute; top: 0; left: 0; height: 100%; background: var(--ios-slider-fill); border-radius: 20px; pointer-events: none; transition: width 0.05s linear, background 0.3s ease; }
+        .ios-slider-content { position: relative; width: 100%; display: flex; justify-content: space-between; align-items: center; z-index: 2; pointer-events: none; }
+        .ios-slider-content svg { width: 18px; height: 18px; fill: var(--text-secondary); }
+
+        textarea.setting-textarea { width: 100%; background: transparent; border: none; color: var(--text-main); font-size: 14px; resize: none; outline: none; line-height: 1.4; padding: 4px 0; }
+        
+        .save-btn { width: 100%; background: var(--accent); color: #fff; border: none; padding: 16px; border-radius: 28px; font-size: 16px; font-weight: 600; cursor: pointer; transition: opacity 0.2s; box-shadow: 0 4px 14px rgba(10, 132, 255, 0.3); }
+        .save-btn:active { opacity: 0.8; }
+
+        /* Модальное окно кадрирования аватара */
+        .crop-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; padding: 20px; gap: 20px; }
+        .crop-modal.open { display: flex; }
+        .crop-container { position: relative; width: 260px; height: 260px; border-radius: 50%; overflow: hidden; border: 3px solid var(--accent); background: #1c1c1e; box-shadow: 0 10px 40px rgba(0,0,0,0.6); touch-action: none; }
+        .crop-container img { position: absolute; cursor: grab; user-select: none; max-width: none; max-height: none; }
+        .crop-mask-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%; box-shadow: 0 0 0 2000px rgba(0, 0, 0, 0.6); pointer-events: none; }
+        .crop-controls { width: 100%; max-width: 280px; display: flex; flex-direction: column; gap: 14px; align-items: center; }
+        .crop-buttons { display: flex; gap: 10px; width: 100%; }
+        .crop-btn { flex: 1; padding: 12px; border-radius: 18px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; }
+        .crop-btn.cancel { background: var(--surface); color: var(--text-main); border: 1px solid var(--border); }
+        .crop-btn.ok { background: var(--accent); color: #fff; }
+    </style>
+</head>
+<body>
+
+    <!-- Скрытый системный выбор файла из галереи -->
+    <input type="file" id="galleryFileInput" accept="image/*" style="display: none;" onchange="initCrop(event)">
+
+    <!-- Модальное окно кадрирования и зума -->
+    <div class="crop-modal" id="cropModal">
+        <div style="font-size: 17px; font-weight: 600; color: #fff;">Подгонка аватара</div>
+        <div class="crop-container" id="cropContainer">
+            <img id="cropImage" src="" alt="Crop Source">
+            <div class="crop-mask-overlay"></div>
+        </div>
+        <div class="crop-controls">
+            <input type="range" id="zoomSlider" min="0.5" max="3" step="0.01" value="1" style="width: 100%; cursor: pointer;" oninput="applyZoom(this.value)">
+            <div class="crop-buttons">
+                <button class="crop-btn cancel" onclick="closeCropModal()">Отмена</button>
+                <button class="crop-btn ok" onclick="saveCroppedAvatar()">Готово</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-views">
+        
+        <!-- 1. ГЛАВНАЯ -->
+        <div class="view active" id="view-main">
+            <div class="nav-header">
+                <div class="nav-title">Control Center</div>
+                <div style="font-size: 13px; color: var(--success); font-weight: 600;">● Online</div>
+            </div>
+            <div class="content-scroll">
+                
+                <!-- Аватарка -->
+                <div class="hero-banner" id="heroCardBanner">
+                    <div class="avatar-wrapper">
+                        <div class="hero-avatar" id="avatarContainer">
+                            <svg class="avatar-svg-icon" id="avatarSvg" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/></svg>
+                            <div class="avatar-img-layer" id="avatarImgLayer"></div>
+                        </div>
+                        <button class="pencil-btn" onclick="toggleAvatarEditor()" title="Загрузить фото">
+                            <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                        </button>
+                    </div>
+
+                    <!-- Панель настройки аватара -->
+                    <div class="avatar-editor-panel" id="avatarEditorPanel">
+                        <button class="gallery-btn" onclick="openGallery()">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+                            Загрузить фото из галереи
+                        </button>
+                    </div>
+
+                    <div style="font-size: 20px; font-weight: 700; margin-top: 2px;" id="botNameDisplay">Серега</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">DeepSeek & Home Assistant активны</div>
+                </div>
+
+                <!-- Сценарии -->
+                <div>
+                    <div class="section-header-row">
+                        <div class="section-title">Сценарии</div>
+                        <button class="add-btn-icon" onclick="addNewScenario()" title="Добавить новый сценарий">+</button>
+                    </div>
+                    <div class="scenarios-grid" id="scenariosGrid">
+                        <div class="scenario-card" onclick="alert('Сценарий «Я дома» активирован!')">
+                            <span class="scenario-icon">
+                                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14Z"/></svg>
+                            </span>
+                            <span class="scenario-label">Я дома</span>
+                        </div>
+                        <div class="scenario-card" onclick="alert('Сценарий «Ушел» активирован!')">
+                            <span class="scenario-icon">
+                                <svg viewBox="0 0 24 24"><path d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .89-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.11-.9-2-2-2z"/></svg>
+                            </span>
+                            <span class="scenario-label">Ушел</span>
+                        </div>
+                        <div class="scenario-card" onclick="alert('Сценарий «Кино» активирован!')">
+                            <span class="scenario-icon">
+                                <svg viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4zM4 18V8h16v10H4z"/></svg>
+                            </span>
+                            <span class="scenario-label">Кино</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Будильник -->
+                <div>
+                    <div class="section-title" style="margin-bottom: 8px; margin-left: 4px;">Будильник</div>
+                    <div class="alarm-card">
+                        <div>
+                            <div class="alarm-time">07:30</div>
+                            <div class="alarm-sub">Будни • Завтра сработает</div>
+                        </div>
+                        <div class="ios-switch active" onclick="this.classList.toggle('active')"></div>
+                    </div>
+                </div>
+
+                <!-- Погода -->
+                <div>
+                    <div class="section-title" style="margin-bottom: 8px; margin-left: 4px;">Погода</div>
+                    <div class="weather-card">
+                        <div>
+                            <div class="weather-city">Санкт-Петербург</div>
+                            <div class="weather-desc">Переменная облачность</div>
+                            <div style="font-size: 12px; opacity: 0.8; margin-top: 6px;">Влажность 78% • Ветер 4 м/с</div>
+                        </div>
+                        <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
+                            <div class="weather-icon">
+                                <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95C8.08 7.14 9.94 6 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11c1.56.1 2.78 1.41 2.78 2.96 0 1.65-1.35 3-3 3z"/></svg>
+                            </div>
+                            <div class="weather-temp">+12°</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Датчики -->
+                <div>
+                    <div class="section-title" style="margin-bottom: 8px; margin-left: 4px;">Датчики дома</div>
+                    <div class="sensors-grid">
+                        <div class="sensor-card">
+                            <div class="sensor-icon">
+                                <svg viewBox="0 0 24 24"><path d="M15 13V5c0-1.66-1.34-3-3-3S9 3.34 9 5v8c-1.21.91-2 2.37-2 4 0 2.76 2.24 5 5 5s5-2.24 5-5c0-1.63-.79-3.09-2-4zm-4-2V5c0-.55.45-1 1-1s1 .45 1 1v1h-1v1h1v2h-1v1h1v2h-2z"/></svg>
+                            </div>
+                            <div class="sensor-val">22.5°C</div>
+                            <div class="sensor-label">Температура</div>
+                        </div>
+                        <div class="sensor-card">
+                            <div class="sensor-icon">
+                                <svg viewBox="0 0 24 24"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+                            </div>
+                            <div class="sensor-val">45%</div>
+                            <div class="sensor-label">Влажность</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Подсветка кольца -->
+                <div>
+                    <div class="section-title" style="margin-bottom: 8px; margin-left: 4px;">Подсветка (WS2812B)</div>
+                    <div class="card">
+                        <div class="led-preview-box">
+                            <div class="led-gradient-sphere pulse" id="ledSphere"></div>
+                        </div>
+                        <div class="led-mode-selector">
+                            <button class="mode-btn active" onclick="setLedMode('pulse', this)">Пульс</button>
+                            <button class="mode-btn" onclick="setLedMode('rainbow', this)">Перелив</button>
+                            <button class="mode-btn" onclick="setLedMode('matrix', this)">Матрица</button>
+                        </div>
+
+                        <div class="feature-toggle-row" style="margin-top: 4px;">
+                            <div class="feature-info">
+                                <div class="feature-title">Режим сна</div>
+                                <div class="feature-desc">Плавное затухание через 30 минут</div>
+                            </div>
+                            <div class="ios-switch" onclick="this.classList.toggle('active')"></div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 2. ДОМ -->
+        <div class="view" id="view-home">
+            <div class="nav-header">
+                <div class="nav-title">Умный дом</div>
+                <button class="nav-icon-btn" onclick="addNewDevice()" title="Добавить устройство">
+                    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                </button>
+            </div>
+            <div class="content-scroll">
+                <div>
+                    <div class="section-title" style="margin-bottom: 12px; margin-left: 4px;">Устройства</div>
+                    <div class="device-grid" id="deviceGrid">
+                        <div class="device-card active" onclick="toggleDeviceCard(this)">
+                            <div class="device-card-top">
+                                <span class="device-icon">
+                                    <svg viewBox="0 0 24 24"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6A4.997 4.997 0 0 1 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z"/></svg>
+                                </span>
+                                <div class="ios-switch active"></div>
+                            </div>
+                            <div style="font-size: 14px; font-weight: 500;">Свет в зале</div>
+                        </div>
+                        <div class="device-card" onclick="toggleDeviceCard(this)">
+                            <div class="device-card-top">
+                                <span class="device-icon">
+                                    <svg viewBox="0 0 24 24"><path d="M16 1H8C6.9 1 6 1.9 6 3v18c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V3c0-1.1-.9-2-2-2zm0 18H8V5h8v14zm-3-11h-2v3H8v2h3v3h2v-3h3v-2h-3z"/></svg>
+                                </span>
+                                <div class="ios-switch"></div>
+                            </div>
+                            <div style="font-size: 14px; font-weight: 500;">Розетка ПК</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. ОБЩИЕ -->
+        <div class="view" id="view-general">
+            <div class="nav-header">
+                <div class="nav-title">Общие</div>
+                <button class="nav-icon-btn" onclick="clearChat()" title="Очистить чат">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                </button>
+            </div>
+            <div class="content-scroll" style="padding-bottom: 95px;">
+                
+                <!-- Чат -->
+                <div>
+                    <div class="section-title" style="margin-bottom: 8px; margin-left: 4px;">Чат</div>
+                    <div class="card" style="height: 250px; padding: 12px; display: flex; flex-direction: column;">
+                        <div class="chat-scroll" id="chatScroll">
+                            <div class="message-row assistant">
+                                <div class="bubble">Здорово, босс. Чё надо сделать или разъебать?</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-top: 8px; align-items: center;">
+                        <button class="action-btn mic-btn-chat" id="micBtn" onclick="toggleVoice()" style="width: 40px; height: 40px;">
+                            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                        </button>
+                        <div class="chat-input-box" style="flex: 1;">
+                            <textarea id="chatInput" rows="1" placeholder="Спроси ассистента..." oninput="autoResize(this)"></textarea>
+                            <button class="action-btn" onclick="sendChatMessage()" style="width: 32px; height: 32px; font-size: 14px;">↑</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Комфорт и темы -->
+                <div>
+                    <div class="section-title" style="margin-bottom: 8px; margin-left: 4px;">Комфорт и темы</div>
+                    <div class="settings-group">
+                        <div class="setting-row">
+                            <span class="setting-label">Тема оформления</span>
+                            <select class="setting-select" id="themeSelect" onchange="changeTheme(this.value)">
+                                <option value="dark">Тёмная</option>
+                                <option value="light">Светлая</option>
+                            </select>
+                        </div>
+                        <div class="setting-row">
+                            <span class="setting-label">Прозрачность блоков</span>
+                            <div class="ios-switch active" id="transparencySwitch" onclick="toggleTransparency(this)"></div>
+                        </div>
+                        <!-- Выбор цвета карточки аватара -->
+                        <div class="setting-row">
+                            <span class="setting-label">Цвет карточки аватара</span>
+                            <input type="color" id="settingsColorPicker" value="#1c1c1e" onchange="setHeroBgColor(this.value)" style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-color); cursor: pointer;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Звук и Микрофон -->
+                <div>
+                    <div class="section-title" style="margin-bottom: 8px; margin-left: 4px;">Звук и Микрофон (ESP32)</div>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        
+                        <!-- Слайдер громкости -->
+                        <div class="ios-slider-card">
+                            <div class="ios-slider-header">
+                                <span>Громкость колонки</span>
+                                <span id="volVal" style="color: var(--text-secondary); font-size: 14px;">80%</span>
+                            </div>
+                            <div class="ios-slider-wrapper">
+                                <div class="ios-slider-fill" id="volFill" style="width: 80%;"></div>
+                                <input type="range" class="ios-slider" min="0" max="100" value="80" oninput="updateIosSlider(this, 'volFill', 'volVal')">
+                                <div class="ios-slider-content">
+                                    <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                                    <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Слайдер микрофона -->
+                        <div class="ios-slider-card">
+                            <div class="ios-slider-header">
+                                <span>Чувствительность мика</span>
+                                <span id="micVal" style="color: var(--text-secondary); font-size: 14px;">70%</span>
+                            </div>
+                            <div class="ios-slider-wrapper">
+                                <div class="ios-slider-fill" id="micFill" style="width: 70%;"></div>
+                                <input type="range" class="ios-slider" min="0" max="100" value="70" oninput="updateIosSlider(this, 'micFill', 'micVal')">
+                                <div class="ios-slider-content">
+                                    <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                                    <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Тихий час -->
+                        <div class="feature-toggle-row">
+                            <div class="feature-info">
+                                <div class="feature-title">Тихий час (23:00 - 07:00)</div>
+                            </div>
+                            <div class="ios-switch" onclick="this.classList.toggle('active')"></div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Настройки ассистента -->
+                <div>
+                    <div class="section-title" style="margin-bottom: 8px; margin-left: 4px;">Настройки ассистента</div>
+                    <div class="settings-group">
+                        <div class="setting-row">
+                            <span class="setting-label">Имя бота</span>
+                            <input type="text" class="setting-input" id="botNameInput" value="Серега" oninput="updateBotIdentity()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Home Assistant -->
+                <div>
+                    <div class="section-title" style="margin-bottom: 8px; margin-left: 4px;">Home Assistant</div>
+                    <div class="settings-group">
+                        <div class="setting-row">
+                            <span class="setting-label">IP Сервера</span>
+                            <input type="text" class="setting-input" id="haIpInput" value="192.168.1.50:8123">
+                        </div>
+                        <div class="setting-row">
+                            <span class="setting-label">API Token</span>
+                            <input type="password" class="setting-input" id="haTokenInput" value="eyJhGciOiJI...">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Системный промпт -->
+                <div>
+                    <div class="section-title" style="margin-bottom: 8px; margin-left: 4px;">Характер (System Prompt)</div>
+                    <div class="card">
+                        <textarea class="setting-textarea" id="systemPromptInput" rows="3">Ты — умная голосовая колонка и дерзкий ассистент с острым языком и полным отсутствием цензуры. Общайся на ты, используй мат и черный юмор уместно.</textarea>
+                    </div>
+                </div>
+
+                <button class="save-btn" onclick="saveAllSettings()">Сохранить все настройки</button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Нижняя навигация -->
+    <div class="tab-bar-container">
+        <nav class="tab-bar">
+            <button class="tab-item active" onclick="switchView('main', this)">
+                <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+                Главная
+            </button>
+            <button class="tab-item" onclick="switchView('home', this)">
+                <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
+                Дом
+            </button>
+            <button class="tab-item" onclick="switchView('general', this)">
+                <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c-.5.38 1.03.7 1.62.94l.36 2.54c-.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6-3.6z"/></svg>
+                Общие
+            </button>
+        </nav>
+    </div>
+
+    <script>
+        let currentAvatarData = '';
+        
+        const cropImg = document.getElementById('cropImage');
+        const cropContainer = document.getElementById('cropContainer');
+        const zoomSlider = document.getElementById('zoomSlider');
+        let imgNaturalWidth = 0;
+        let imgNaturalHeight = 0;
+        let baseScale = 1;
+        let currentZoom = 1;
+        let imgX = 0;
+        let imgY = 0;
+        let isDragging = false;
+        let startX = 0;
+        let startY = 0;
+
+        function switchView(viewName, btn) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
+            document.getElementById('view-' + viewName).classList.add('active');
+            btn.classList.add('active');
+        }
+
+        const chatScroll = document.getElementById('chatScroll');
+        const chatInput = document.getElementById('chatInput');
+        let isRecording = false;
+
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+        }
+
+        function updateIosSlider(input, fillId, valId) {
+            const val = input.value;
+            document.getElementById(fillId).style.width = val + '%';
+            document.getElementById(valId).textContent = val + '%';
+        }
+
+        function sendChatMessage() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+            appendMsg(text, 'user');
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+
+            setTimeout(() => {
+                appendMsg("Сделано, босс! Запрос обработан.", 'assistant');
+            }, 800);
+        }
+
+        function appendMsg(text, sender) {
+            const row = document.createElement('div');
+            row.className = `message-row ${sender}`;
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.textContent = text;
+            row.appendChild(bubble);
+            chatScroll.appendChild(row);
+            chatScroll.scrollTop = chatScroll.scrollHeight;
+        }
+
+        function toggleVoice() {
+            isRecording = !isRecording;
+            const micBtn = document.getElementById('micBtn');
+            if (isRecording) {
+                micBtn.classList.add('recording');
+                chatInput.placeholder = "Слушаю...";
+                setTimeout(() => {
+                    if (isRecording) toggleVoice();
+                    appendMsg("Поставь будильник на 7 утра", 'user');
+                    setTimeout(() => {
+                        appendMsg("Будильник на 07:00 заряжен.", 'assistant');
+                    }, 800);
+                }, 3000);
+            } else {
+                micBtn.classList.remove('recording');
+                chatInput.placeholder = "Спроси ассистента...";
+            }
+        }
+
+        function clearChat() {
+            chatScroll.innerHTML = '';
+            appendMsg("История очищена. Чего командуешь?", 'assistant');
+        }
+
+        function setLedMode(mode, btn) {
+            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('ledSphere').className = 'led-gradient-sphere ' + mode;
+        }
+
+        function toggleDeviceCard(card) {
+            card.classList.toggle('active');
+            const sw = card.querySelector('.ios-switch');
+            if (sw) sw.classList.toggle('active');
+        }
+
+        function addNewDevice() {
+            const deviceName = prompt("Введите название устройства:");
+            if (!deviceName) return;
+            const grid = document.getElementById('deviceGrid');
+            const newCard = document.createElement('div');
+            newCard.className = 'device-card active';
+            newCard.setAttribute('onclick', 'toggleDeviceCard(this)');
+            newCard.innerHTML = `
+                <div class="device-card-top">
+                    <span class="device-icon">
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                    </span>
+                    <div class="ios-switch active"></div>
+                </div>
+                <div style="font-size: 14px; font-weight: 500;">${deviceName}</div>
+            `;
+            grid.appendChild(newCard);
+        }
+
+        function addNewScenario() {
+            const name = prompt("Введите название нового сценария:");
+            if (!name) return;
+            const grid = document.getElementById('scenariosGrid');
+            const card = document.createElement('div');
+            card.className = 'scenario-card';
+            card.setAttribute('onclick', `alert('Сценарий «${name}» активирован!')`);
+            card.innerHTML = `
+                <span class="scenario-icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+                </span>
+                <span class="scenario-label">${name}</span>
+            `;
+            grid.appendChild(card);
+        }
+
+        function updateBotIdentity() {
+            const name = document.getElementById('botNameInput').value || 'Серега';
+            document.getElementById('botNameDisplay').textContent = name;
+        }
+
+        function updateAvatarDisplay(imgData) {
+            const svgIcon = document.getElementById('avatarSvg');
+            const imgLayer = document.getElementById('avatarImgLayer');
+            
+            if (imgData && imgData.trim() !== '') {
+                currentAvatarData = imgData;
+                imgLayer.style.backgroundImage = `url(${imgData})`;
+                imgLayer.style.display = 'block';
+                svgIcon.style.display = 'none';
+            } else {
+                currentAvatarData = '';
+                imgLayer.style.backgroundImage = 'none';
+                imgLayer.style.display = 'none';
+                svgIcon.style.display = 'block';
+            }
+        }
+
+        function openGallery() {
+            document.getElementById('galleryFileInput').click();
+        }
+
+        function initCrop(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                cropImg.onload = function() {
+                    imgNaturalWidth = cropImg.naturalWidth;
+                    imgNaturalHeight = cropImg.naturalHeight;
+                    
+                    baseScale = 260 / Math.min(imgNaturalWidth, imgNaturalHeight);
+                    currentZoom = 1;
+                    zoomSlider.value = 1;
+
+                    imgX = (260 - imgNaturalWidth * baseScale) / 2;
+                    imgY = (260 - imgNaturalHeight * baseScale) / 2;
+                    updateTransform();
+
+                    document.getElementById('cropModal').classList.add('open');
+                    toggleAvatarEditor();
+                };
+                cropImg.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+            event.target.value = '';
+        }
+
+        function applyZoom(val) {
+            currentZoom = parseFloat(val);
+            updateTransform();
+        }
+
+        function updateTransform() {
+            const scale = baseScale * currentZoom;
+            cropImg.style.width = (imgNaturalWidth * scale) + 'px';
+            cropImg.style.height = (imgNaturalHeight * scale) + 'px';
+            cropImg.style.left = imgX + 'px';
+            cropImg.style.top = imgY + 'px';
+        }
+
+        cropContainer.addEventListener('mousedown', startDrag);
+        cropContainer.addEventListener('touchstart', startDrag, {passive: false});
+
+        window.addEventListener('mousemove', drag);
+        window.addEventListener('touchmove', drag, {passive: false});
+
+        window.addEventListener('mouseup', endDrag);
+        window.addEventListener('touchend', endDrag);
+
+        function startDrag(e) {
+            isDragging = true;
+            startX = e.clientX || e.touches[0].clientX;
+            startY = e.clientY || e.touches[0].clientY;
+            e.preventDefault();
+        }
+
+        function drag(e) {
+            if (!isDragging) return;
+            const clientX = e.clientX || e.touches[0].clientX;
+            const clientY = e.clientY || e.touches[0].clientY;
+            
+            imgX += clientX - startX;
+            imgY += clientY - startY;
+            
+            startX = clientX;
+            startY = clientY;
+            updateTransform();
+            e.preventDefault();
+        }
+
+        function endDrag() {
+            isDragging = false;
+        }
+
+        function closeCropModal() {
+            document.getElementById('cropModal').classList.remove('open');
+        }
+
+        function saveCroppedAvatar() {
+            const canvas = document.createElement('canvas');
+            canvas.width = 300;
+            canvas.height = 300;
+            const ctx = canvas.getContext('2d');
+
+            const scale = baseScale * currentZoom;
+            const sourceX = -imgX / scale;
+            const sourceY = -imgY / scale;
+            const sourceSize = 260 / scale;
+
+            ctx.drawImage(cropImg, sourceX, sourceY, sourceSize, sourceSize, 0, 0, 300, 300);
+            
+            const finalDataUrl = canvas.toDataURL('image/jpeg', 0.9);
+            updateAvatarDisplay(finalDataUrl);
+            closeCropModal();
+        }
+
+        function toggleAvatarEditor() {
+            const panel = document.getElementById('avatarEditorPanel');
+            panel.classList.toggle('open');
+        }
+
+        function setHeroBgColor(hexColor) {
+            document.getElementById('heroCardBanner').style.background = hexColor;
+        }
+
+        function changeTheme(theme) {
+            if (theme === 'light') {
+                document.body.classList.add('theme-light');
+            } else {
+                document.body.classList.remove('theme-light');
+            }
+        }
+
+        function toggleTransparency(sw) {
+            sw.classList.toggle('active');
+            if (sw.classList.contains('active')) {
+                document.body.classList.remove('no-transparency');
+            } else {
+                document.body.classList.add('no-transparency');
+            }
+        }
+
+        function saveAllSettings() {
+            const isTrans = document.getElementById('transparencySwitch').classList.contains('active');
+            const settings = {
+                botName: document.getElementById('botNameInput').value,
+                avatarData: currentAvatarData,
+                heroBg: document.getElementById('heroCardBanner').style.background,
+                theme: document.getElementById('themeSelect').value,
+                transparency: isTrans
+            };
+            try {
+                localStorage.setItem('serega_settings', JSON.stringify(settings));
+                alert('Все настройки сохранены!');
+            } catch (err) {
+                alert('Ошибка сохранения: изображение слишком большое.');
+            }
+        }
+
+        function loadSettings() {
+            const saved = localStorage.getItem('serega_settings');
+            if (!saved) return;
+            try {
+                const s = JSON.parse(saved);
+                if (s.botName) {
+                    document.getElementById('botNameInput').value = s.botName;
+                    updateBotIdentity();
+                }
+                if (s.avatarData) {
+                    updateAvatarDisplay(s.avatarData);
+                }
+                if (s.heroBg) {
+                    document.getElementById('heroCardBanner').style.background = s.heroBg;
+                    document.getElementById('settingsColorPicker').value = s.heroBg;
+                }
+                if (s.theme) {
+                    document.getElementById('themeSelect').value = s.theme;
+                    changeTheme(s.theme);
+                }
+                if (s.transparency !== undefined) {
+                    const sw = document.getElementById('transparencySwitch');
+                    if (s.transparency) {
+                        sw.classList.add('active');
+                        document.body.classList.remove('no-transparency');
+                    } else {
+                        sw.classList.remove('active');
+                        document.body.classList.add('no-transparency');
+                    }
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendChatMessage();
+            }
+        });
+
+        loadSettings();
+    </script>
+</body>
+</html>
+
